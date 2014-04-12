@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "FrameCrc.h"
+#include "PrintUtil.h"
 #include <stdio.h>
 
 uint8_t FrameCrc::calculate(Frame * frame) {
@@ -42,6 +43,7 @@ bool FrameCrc::validate(Frame * frame) {
         bytes_sum = (bytes_sum + *frame_pointer) & 0xFF;
     }
     uint8_t crc = frame->get_crc();
+    PrintUtl.prints("Frame validity: %d %d\r\n", bytes_sum, bytes_sum == 0);
     return bytes_sum == 0;
 }
 

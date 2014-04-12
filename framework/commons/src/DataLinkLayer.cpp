@@ -32,6 +32,8 @@ DataLinkLayer::DataLinkLayer(PhysicalLayer * physicalLayer, uint8_t address) {
     _transmitFrameList = NULL;
     _tx_buffer_size = 0;
     _rx_buffer_size = 0;
+    _current_rx_buffer = NULL;
+    _current_rx_buffer_size = 0;
 }
 
 // Adds new frames to the transmit frame list
@@ -81,9 +83,10 @@ void DataLinkLayer::writeData() {
             frame->prepare_to_transmit();
             uint8_t * encoded_frame = frame_encode(frame, &encoded_frame_size);
             uint32_t bytes_written = _physicalLayer->write(encoded_frame, encoded_frame_size);
+            PrintUtl.prints("Bytes written %d\n\r", bytes_written);
             if (bytes_written != 0) {
                 frame->set_control_data(frame->get_control_data() | CONTROL_TRANS_FRAME);
-                PrintUtl.prints("Bytes written %d\n\r", bytes_written);
+
             }
             PrintUtl.prints("Sent ");
             frame->print();
@@ -98,6 +101,12 @@ void DataLinkLayer::process_rx_frame(Frame * frame) {
         Frame * ack_frame = new Frame();
 
         memcpy(ack_frame, frame, sizeof(Frame)); 
+
+        uint8_t source = frame->get_src_address();
+
+        ack_frame->set_src_address(_address);
+        ack_frame->set_dst_address(source);
+
         ack_frame->set_control_data((ack_frame->get_control_data() | CONTROL_ACK_FRAME) & ~CONTROL_TRANS_FRAME);
         queue_frames_to_tx(&ack_frame, (uint8_t)1);
 
@@ -134,38 +143,56 @@ void DataLinkLayer::remove_frame_from_tx_queue(Frame * frame) {
 // Reads data from the physical layer decodes it to frames and adds it to the receive queue
 void DataLinkLayer::readData() {
     uint32_t available_bytes = _physicalLayer->available();
-    
-    if (available_bytes > sizeof(Frame)) {
-        uint8_t * buffer = (uint8_t*)calloc(available_bytes, sizeof(uint8_t));
-        _physicalLayer->read(buffer, available_bytes);
-        for(int i = 0; i < available_bytes; i++) {
-            if (buffer[i] == FRAME_START_BYTE) {
-                Frame * frame = frame_decode(buffer + i);
-                // Only accept valid frames and from other clients
-                // to us
-                if (Crc.validate(frame) && frame->get_src_address() != _address && frame->get_dst_address() == _address) {
-                    Frame ** newRxFrameList = (Frame **)realloc(_receiveFrameList, (_rx_buffer_size + 1) * sizeof(Frame *));
-                    if (newRxFrameList == NULL) {
-                        //BOOM!! We were not able to allocate memory
-                        return;
-                    } else if (newRxFrameList != _receiveFrameList) {
-                        _receiveFrameList = newRxFrameList;
-                    }
-                    _receiveFrameList[_rx_buffer_size] = frame;
-                    _rx_buffer_size++;
 
+    if (available_bytes) {
+        if (_current_rx_buffer == NULL) {
+            _current_rx_buffer = (uint8_t*)calloc(available_bytes, sizeof(uint8_t));
+        } else {
+            _current_rx_buffer = (uint8_t*)realloc(_current_rx_buffer, (_current_rx_buffer_size + available_bytes) * sizeof(uint8_t));
+        }
 
-                    process_rx_frame(frame);
-                    PrintUtl.prints("Received ");
-                    frame->print();
-                }
+        _physicalLayer->read(_current_rx_buffer + _current_rx_buffer_size, available_bytes);
+        _current_rx_buffer_size += available_bytes;
 
-
-            }
-        } 
-        free(buffer);
+        PrintUtl.prints("Current rx buffer size %d %d\r\n", available_bytes, _current_rx_buffer_size);
     }
 
+    if (_current_rx_buffer_size >= sizeof(Frame)) {
+        for(int i = 0; i < _current_rx_buffer_size; i++) {
+            if (_current_rx_buffer[i] == FRAME_START_BYTE) {
+                Frame * frame = frame_decode(_current_rx_buffer + i, _current_rx_buffer_size - i);
+                // Only accept valid frames and from other clients
+                // to us
+                if (Crc.validate(frame)) {
+                    if (should_read_frame(frame)) {
+
+                        Frame ** newRxFrameList = (Frame **)realloc(_receiveFrameList, (_rx_buffer_size + 1) * sizeof(Frame *));
+                        if (newRxFrameList == NULL) {
+                            //BOOM!! We were not able to allocate memory
+                            return;
+                        } else if (newRxFrameList != _receiveFrameList) {
+                            _receiveFrameList = newRxFrameList;
+                        }
+                        _receiveFrameList[_rx_buffer_size] = frame;
+                        _rx_buffer_size++;
+
+
+                        process_rx_frame(frame);
+                        frame->print();
+                    }
+                    free(_current_rx_buffer);
+                    _current_rx_buffer_size = 0;
+                } else {
+                    free(frame);
+                }
+            }
+        } 
+
+    }
+}
+
+bool DataLinkLayer::should_read_frame(Frame * frame) {
+    return Crc.validate(frame) && frame->get_src_address() != _address && frame->get_dst_address() == _address;
 }
 
 // Queues <>number_of_frames<> in the _transmitFrameList
@@ -266,7 +293,7 @@ uint8_t * DataLinkLayer::frame_encode(Frame * frame, uint8_t * size) {
 }
 
 
-Frame * DataLinkLayer::frame_decode(uint8_t * data) {
+Frame * DataLinkLayer::frame_decode(uint8_t * data, uint32_t size) {
     Frame * frame = new Frame();
     uint8_t * pointer = (uint8_t *) frame;
     uint8_t data_size = 0;
@@ -282,6 +309,15 @@ Frame * DataLinkLayer::frame_decode(uint8_t * data) {
 
     // data size in bytes
     data_size = *data++;
+    PrintUtl.prints("data size: %d buffer size %d\r\n", data_size, size);
+    if (data_size > sizeof(Frame) + (sizeof(Frame)/8)) {
+        return NULL;
+    }
+
+    if (data_size > size) {
+        // we need to read more bytes from the physical layer
+        return NULL;
+    }
 
     for(int i = 0; bit_number < data_size * 8; i++, bit_number++) {
         uint8_t current_bit = GET_BIT(data, i);
@@ -300,10 +336,6 @@ Frame * DataLinkLayer::frame_decode(uint8_t * data) {
     }
     PrintUtl.prints("\r\n");
     uint8_t * p = (uint8_t *) pointer;
-    PrintUtl.prints("First byte: %d\r\n", *p);
-    PrintUtl.prints("second byte: %d\r\n", *(p+1));
-    PrintUtl.prints("third byte: %d\r\n", *(p+2));
-    PrintUtl.prints("fourth byte: %d\r\n", *(p+3));
 
     return frame;
 }

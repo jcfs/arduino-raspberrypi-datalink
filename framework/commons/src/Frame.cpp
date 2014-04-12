@@ -25,6 +25,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define NO_PAYLOAD 0x00
 
+Frame::Frame() {
+    _frame_id = 0; 
+    _frame_seq = 0; 
+    _src_address = 0; 
+    _dst_address = 0; 
+    _control_data = 0; 
+    _crc = 0;
+
+    for(int i = 0; i < PAYLOAD_MAX_SIZE; i++) {
+        _payload[i] = NO_PAYLOAD;
+    }
+    
+}
+
 Frame::Frame(uint32_t frame_id, uint32_t frame_seq, uint8_t src_address, uint8_t dst_address, uint8_t control_data, uint8_t * payload, uint16_t payload_size) {
     _src_address = src_address;
     _dst_address = dst_address;
@@ -51,7 +65,7 @@ void Frame::set_payload(uint8_t * payload, uint16_t payload_size) {
     }
 
     // fill the rest with NO_PAYLOAD
-    for(int i = payload_size; payload_size < PAYLOAD_MAX_SIZE; i++) {
+    for(int i = payload_size; i < PAYLOAD_MAX_SIZE; i++) {
         _payload[i] = NO_PAYLOAD;
     }
 }
@@ -61,17 +75,18 @@ void Frame::prepare_to_transmit() {
 }
 
 void Frame::print() {
-    PrintUtl.prints("Frame Id=%lu\n\r\tFrame Seq=%lu\n\r\tSrc=%d\n\r\tDest=%d\n\r\tControl=",
+    PrintUtl.prints("Frame Id=%lu\n\r\tFrame Seq=%lu\n\r\tSrc=%d\n\r\tDest=%d\r\n\tControl=",
             _frame_id,
             _frame_seq,
             _src_address,
             _dst_address);
+
     if (_control_data & CONTROL_FIST_FRAME) PrintUtl.prints("FST ");
     if (_control_data & CONTROL_LAST_FRAME) PrintUtl.prints("LST ");
     if (_control_data & CONTROL_ACK_FRAME) PrintUtl.prints("ACK ");
     if (_control_data & CONTROL_TRANS_FRAME) PrintUtl.prints("TX ");
     if (_control_data & CONTROL_ACKED_FRAME) PrintUtl.prints("ACKED");
-    PrintUtl.prints("\n\r\tControl(n)=%d\n\r", _control_data);
+    PrintUtl.prints("\n\r\tControl(n)=%d\n\r\tCrc=%d\r\n", _control_data, _crc);
     PrintUtl.prints("\n\r");
 }
 

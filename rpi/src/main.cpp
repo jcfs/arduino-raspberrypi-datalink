@@ -26,9 +26,8 @@ int main(int argc, char ** argv) {
 	PhysicalLayer Physical = PhysicalLayer(TX_PIN, RX_PIN, "/dev/ttyAMA0", 9600);
 	DataLinkLayer DataLink = DataLinkLayer(&Physical, 0x0);
 
-    printf("%d\n", sizeof(class Frame));
-
 	Packet * packet = new Packet();
+    
 	DataLink.write(0x1, packet);
 
 	while(true) {

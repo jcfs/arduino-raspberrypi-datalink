@@ -43,6 +43,9 @@ class DataLinkLayer {
         Frame ** _transmitFrameList;
         uint32_t _rx_buffer_size;
         uint32_t _tx_buffer_size;
+
+        uint8_t * _current_rx_buffer;
+        uint8_t _current_rx_buffer_size;
         // Map with the current ids to be used in the transmit frames
         // The key is the receiver address
         uint32_t _transmitIds;
@@ -62,7 +65,9 @@ class DataLinkLayer {
         //Encode the frame data to pass to the physical layer	
         uint8_t * frame_encode(Frame * frame, uint8_t * size);
         //Decode the data from the physical layer to a frame
-        Frame * frame_decode(uint8_t * data);
+        Frame * frame_decode(uint8_t * data, uint32_t size);
+        // checks the frame to be read
+        bool should_read_frame(Frame * frame);
         // Call to the physical layer in order to write the the transmition queue
         void writeData();
         // Call to the physical layer in order to read to the receive queue

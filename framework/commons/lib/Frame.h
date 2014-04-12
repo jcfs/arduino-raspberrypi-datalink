@@ -46,7 +46,7 @@ class Frame {
         // the 8 bit checksum of the frame
         uint8_t _crc;
     public:
-        Frame() { _frame_id = 0; _frame_seq = 0; _src_address = 0; _dst_address = 0; _control_data = 0; _crc = 0;};
+        Frame();
         Frame(uint32_t frame_id, uint32_t _frame_seq, uint8_t src_address, uint8_t dst_address, uint8_t control_data, uint8_t * payload, uint16_t payload_size);
         uint8_t get_src_address() { return _src_address; };
         uint8_t get_dst_address() { return _dst_address; };
