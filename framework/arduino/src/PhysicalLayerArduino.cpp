@@ -70,7 +70,6 @@ uint32_t PhysicalLayer::write(uint8_t * buffer, uint32_t size, bool block) {
         // wait until the line is free
         while(probe_tx_line());
     }
-    PrintUtl.prints("Line not busy, gonna write %d\n", size);
     // the tx pin is only set to output during the transmission itself
     noInterrupts();
     set_tx_pin_to_output();
@@ -125,7 +124,6 @@ bool PhysicalLayer::probe_tx_line() {
 
     while(probe_time - time < 50) {
         uint8_t result = digitalRead(_tx_pin);
-        PrintUtl.prints("Digital read for %d returns %d\n", probe_time - time, result);
         if (!result) {
             return false;
         }

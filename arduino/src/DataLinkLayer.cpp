@@ -64,6 +64,8 @@ Packet ** DataLinkLayer::read(uint32_t * packets_read) {
            } 
         }
     }
+
+
 }
 
 bool DataLinkLayer::process() {

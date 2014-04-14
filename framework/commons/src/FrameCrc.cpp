@@ -43,7 +43,6 @@ bool FrameCrc::validate(Frame * frame) {
         bytes_sum = (bytes_sum + *frame_pointer) & 0xFF;
     }
     uint8_t crc = frame->get_crc();
-    PrintUtl.prints("Frame validity: %d %d\r\n", bytes_sum, bytes_sum == 0);
     return bytes_sum == 0;
 }
 

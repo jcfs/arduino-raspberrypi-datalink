@@ -3,7 +3,7 @@
 #include "DataLinkLayer.h"
 
 #define TX_PIN 11
-#define RX_PIN 10
+#define RX_PIN 11
 
 PhysicalLayer Physical = PhysicalLayer(TX_PIN, RX_PIN, NULL, 9600);
 DataLinkLayer DataLink = DataLinkLayer(&Physical, 0x1);
