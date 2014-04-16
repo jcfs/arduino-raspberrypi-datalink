@@ -82,7 +82,7 @@ void DataLinkLayer::writeData() {
             uint8_t * encoded_frame = frame_encode(frame, &encoded_frame_size);
             frame->set_control_data(frame->get_control_data() | CONTROL_TRANS_FRAME);
             uint32_t bytes_written = _physicalLayer->write(encoded_frame, encoded_frame_size);
-            if (bytes_written == 0) {
+            if (bytes_written <= 0) {
                 frame->set_control_data(frame->get_control_data() & ~CONTROL_TRANS_FRAME);
             }
             PrintUtl.prints("Sent ");
@@ -139,7 +139,7 @@ void DataLinkLayer::readData() {
     uint32_t available_bytes = _physicalLayer->available();
 
     if (available_bytes) {
-        if (_current_rx_buffer == NULL) {
+        if (_current_rx_buffer_size == 0) {
             _current_rx_buffer = (uint8_t*)calloc(available_bytes, sizeof(uint8_t));
         } else {
             uint8_t * temp_buffer = (uint8_t*)realloc(_current_rx_buffer, (_current_rx_buffer_size + available_bytes) * sizeof(uint8_t));
